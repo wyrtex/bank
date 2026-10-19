@@ -29,6 +29,12 @@ class Settings:
 
 
 def load() -> Settings:
+    try:  # подхватываем backend/.env, если он есть, чтобы не экспортировать переменные вручную
+        from dotenv import load_dotenv
+        from pathlib import Path
+        load_dotenv(Path(__file__).resolve().parent / ".env")
+    except Exception:
+        pass
     env = os.environ.get
     return Settings(
         tron_api_key=env("TRON_API_KEY", "").strip(),
