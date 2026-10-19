@@ -116,6 +116,8 @@
   .item .meta .d{font-size:12px;color:var(--muted);margin-top:1px}
   .item .amt{font-weight:800;white-space:nowrap}
   .amt.in{color:var(--pos)}
+  .empty{text-align:center;color:var(--faint);font-size:13px;padding:22px 10px;
+    background:var(--surface);border:1px dashed var(--line);border-radius:14px}
 
   .sup .meta .n{display:flex;align-items:center;gap:8px}
   .chip{font-size:10.5px;font-weight:800;letter-spacing:.3px;padding:2px 7px;border-radius:999px;text-transform:uppercase}
@@ -198,13 +200,13 @@
       <input id="key" inputmode="text" autocomplete="off" placeholder="••••-••••-••••">
     </div>
     <button class="unlock" id="unlock">Войти</button>
-    <p class="hint">Пусто — демо-режим с примерными данными. С адресом и ключом — реальный баланс кошелька.</p>
+    <p class="hint">Адрес сервера — где запущен бэкенд (напр. http://1.2.3.4:8080). Ключ доступа — это ACCESS_KEY из backend/.env (НЕ приватный ключ кошелька и НЕ TronGrid).</p>
   </section>
 
   <!-- шапка -->
   <header class="top">
     <div class="brand"><div class="logo">К</div> Казна</div>
-    <div class="demo">ПРИМЕР ДАННЫХ</div>
+    <div class="demo" id="status" hidden></div>
     <button class="icon-btn" id="theme" title="Тема" aria-label="Сменить тему">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
     </button>
@@ -215,8 +217,8 @@
     <section class="screen" id="s-home">
       <div class="balance">
         <div class="lab"><span class="dot"></span> Баланс казны · USDT</div>
-        <div class="amount tnum" id="bal">1 248.60<small>USDT</small></div>
-        <div class="sub tnum" id="sub">≈ 110 870 ₽ · за 30 дней <b>+18.4%</b></div>
+        <div class="amount tnum" id="bal">—<small>USDT</small></div>
+        <div class="sub" id="sub">Нет подключения — укажите сервер в «Настройках»</div>
         <div class="actions">
           <button class="act"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Пополнить</button>
           <button class="act"><span><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>Вывести</button>
@@ -227,7 +229,7 @@
       <div class="eyebrow">Движение средств</div>
       <div class="card">
         <div class="chart-head">
-          <div class="t tnum">Приход и расход, ₽</div>
+          <div class="t tnum">Движение, USDT</div>
           <div class="seg" id="seg">
             <button data-r="7">7д</button><button data-r="30" class="on">30д</button><button data-r="90">90д</button>
           </div>
@@ -236,26 +238,19 @@
       </div>
 
       <div class="stat-row">
-        <div class="stat"><div class="k">Приход · октябрь</div><div class="v tnum" style="color:var(--pos)">+64 200 ₽</div></div>
-        <div class="stat"><div class="k">Расход · октябрь</div><div class="v tnum">−38 940 ₽</div></div>
-      </div>
-
-      <div class="eyebrow">Нужно решение</div>
-      <div class="approve" id="approve">
-        <div class="n">⚠️ Платёж выше лимита</div>
-        <div class="d">VexBoost — пополнение <b>95 USDT</b> (≈ 8 440 ₽). Разовый лимит 50 USDT, нужно твоё подтверждение.</div>
-        <div class="btns"><button class="btn go" id="ap-go">Подтвердить</button><button class="btn no" id="ap-no">Отклонить</button></div>
+        <div class="stat"><div class="k">Приход <span id="inc-r">30д</span></div><div class="v tnum" id="inc" style="color:var(--pos)">—</div></div>
+        <div class="stat"><div class="k">Расход <span id="exp-r">30д</span></div><div class="v tnum" id="exp">—</div></div>
       </div>
     </section>
 
-    <!-- ПЛАТЕЖИ / ПОСТАВЩИКИ -->
+    <!-- ПЛАТЕЖИ / ПРАВИЛА -->
     <section class="screen" id="s-pay" hidden>
-      <div class="eyebrow">Поставщики · авто-оплата</div>
-      <div class="list" id="suppliers"></div>
-      <div class="eyebrow">Правила</div>
-      <div class="set"><div><div class="k">Разовый лимит</div><div class="d">Больше — спрашивать</div></div><div class="r tnum">50 USDT</div></div>
-      <div class="set"><div><div class="k">Дневной лимит</div><div class="d">Суммарно за сутки</div></div><div class="r tnum">300 USDT</div></div>
-      <div class="set"><div><div class="k">Белый список</div><div class="d">Куда вообще можно платить</div></div><div class="r">4 адреса</div></div>
+      <div class="eyebrow">Лимиты безопасности</div>
+      <div class="set"><div><div class="k">Разовый лимит</div><div class="d">Больше — спрашивать</div></div><div class="r tnum" id="lim-tx">—</div></div>
+      <div class="set"><div><div class="k">Дневной лимит</div><div class="d">Суммарно за сутки</div></div><div class="r tnum" id="lim-day">—</div></div>
+      <div class="set"><div><div class="k">Белый список</div><div class="d">Куда вообще можно платить</div></div><div class="r" id="lim-list">—</div></div>
+      <div class="set"><div><div class="k">Режим</div><div class="d">Сухой прогон или реальные переводы</div></div><div class="r" id="mode">—</div></div>
+      <p class="hint" style="margin:14px 2px 0;font-size:12px;color:var(--faint)">Лимиты, белый список и режим настраиваются в <b>backend/.env</b> на сервере.</p>
     </section>
 
     <!-- ИСТОРИЯ -->
@@ -283,17 +278,13 @@
 
       <div class="eyebrow">Кошелёк · USDT (TRC20)</div>
       <div class="card">
-        <div class="set" style="border:0;background:transparent;padding:0">
-          <div style="min-width:0"><div class="k">Горячий кошелёк</div><div class="addr mono">TJ9k…оборотка · пополняется с Playerok</div></div>
-          <div class="sw on" style="margin-left:auto"></div>
-        </div>
-        <div class="bar"><i style="width:62%"></i></div>
-        <div class="d" style="font-size:12px;color:var(--muted);margin-top:8px">Оборотка 1 248 / холодный резерв скрыт</div>
+        <div class="k">Горячий кошелёк</div>
+        <div class="addr mono" id="addr">—</div>
+        <div class="d" style="font-size:13px;color:var(--muted);margin-top:8px">Баланс газа: <span id="trx" class="tnum">—</span> TRX</div>
       </div>
-      <div class="eyebrow">Безопасность</div>
-      <div class="set"><div><div class="k">Вход по ключу доступа</div><div class="d">Один ключ на все устройства</div></div><div class="sw on"></div></div>
-      <div class="set"><div><div class="k">Приём выплат Playerok</div><div class="d">Сразу в USDT на этот кошелёк</div></div><div class="sw on"></div></div>
-      <div class="set"><div><div class="k">Подтверждать крупные платежи</div><div class="d">Выше разового лимита</div></div><div class="sw on"></div></div>
+      <div class="eyebrow">Подключение</div>
+      <div class="set"><div style="min-width:0"><div class="k">Сервер</div><div class="d" id="srv-url">не указан</div></div></div>
+      <div class="set" id="logout-row"><div><div class="k" style="color:var(--neg)">Выйти / сменить сервер</div><div class="d">Очистит адрес и ключ на этом телефоне</div></div></div>
     </section>
   </div>
 
@@ -322,139 +313,123 @@
   document.getElementById('unlock').addEventListener('click',enter);
   document.getElementById('key').addEventListener('keydown',e=>{if(e.key==='Enter')enter()});
 
+  // ---- данные с сервера ----
+  const $=id=>document.getElementById(id);
+  const fmt=n=>{const [a,b]=Number(n).toFixed(2).split('.');return (+a).toLocaleString('ru-RU')+'.'+b;};
+  let TRANSFERS=[], curRange=30;
+
+  function status(text,bad){
+    const s=$('status');
+    if(!text){s.hidden=true;return;}
+    s.hidden=false; s.textContent=text;
+    s.style.color=bad?'var(--neg)':'var(--muted)';
+    s.style.borderColor=bad?'color-mix(in srgb,var(--neg) 45%,transparent)':'var(--line)';
+  }
+
   async function boot(){
-    if(!CFG.url){return;}                       // демо-режим — оставляем примерные данные
+    $('srv-url').textContent=CFG.url||'не указан';
+    if(!CFG.url){status('не подключено');return;}
+    status('подключаюсь…');
     try{
       const r=await fetch(CFG.url+'/api/summary',{headers:{'X-Access-Key':CFG.key}});
+      if(r.status===401)throw new Error('неверный ключ доступа');
       if(!r.ok)throw new Error('HTTP '+r.status);
-      const d=await r.json();
-      document.querySelector('.demo').hidden=true;   // это реальные данные, не пример
-      if(typeof d.usdt==='number'){
-        const [a,b]=d.usdt.toFixed(2).split('.');
-        document.getElementById('bal').innerHTML=(+a).toLocaleString('ru-RU')+'.'+b+'<small>USDT</small>';
-      }
-      document.getElementById('sub').textContent=(d.live?'Боевой режим':'Сухой прогон')+
-        (typeof d.trx==='number'?' · газ '+d.trx.toFixed(0)+' TRX':'');
-      if(d.address)document.querySelector('.addr').textContent=d.address;
-      if(Array.isArray(d.transfers)&&d.transfers.length){
-        renderHistory(d.transfers.map(t=>({
-          n:(t.incoming?'Поступление':'Перевод')+' USDT',
-          d:t.from?('…'+String(t.from).slice(-6)):'',
-          a:(t.incoming?'+':'−')+Number(t.amount).toFixed(2),in:t.incoming,s:'USDT'})));
-      }
+      render(await r.json());
+      status(null);
     }catch(e){
-      document.getElementById('sub').textContent='нет связи с сервером — показываю демо';
+      status('нет связи: '+e.message,true);
+      $('sub').textContent='Сервер недоступен. Проверьте адрес, ключ и что сервер запущен.';
     }
   }
 
-  // ---- тема ----
-  document.getElementById('theme').addEventListener('click',()=>{
-    const root=document.documentElement;
-    const dark=matchMedia('(prefers-color-scheme:dark)').matches;
-    const cur=root.getAttribute('data-theme')|| (dark?'dark':'light');
-    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
-    drawSpark(curRange);
-  });
-
-  // ---- навигация ----
-  const nav=document.getElementById('nav');
-  nav.addEventListener('click',e=>{
-    const b=e.target.closest('.tab'); if(!b)return;
-    [...nav.children].forEach(t=>t.classList.toggle('on',t===b));
-    const s=b.dataset.s;
-    document.querySelectorAll('.screen').forEach(sc=>sc.hidden = sc.id!=='s-'+s);
-    document.querySelector('.scroll').scrollTop=0;
-  });
-
-  // ---- одобрение ----
-  document.getElementById('ap-go').addEventListener('click',()=>done('Платёж подтверждён'));
-  document.getElementById('ap-no').addEventListener('click',()=>done('Платёж отклонён'));
-  function done(t){const a=document.getElementById('approve');
-    a.innerHTML='<div class="n">✅ '+t+'</div><div class="d" style="margin:5px 0 0">Других решений пока нет.</div>';}
-
-  // ---- поставщики ----
-  const suppliers=[
-    {n:'VexBoost',d:'накрутка · SMM',bal:18,cap:120,auto:true,low:true},
-    {n:'SMM-Panel #2',d:'репосты/сохранения',bal:84,cap:120,auto:true,low:false},
-    {n:'Robux-поставщик',d:'через крипто-инвойс',bal:60,cap:120,auto:false,low:false},
-  ];
-  document.getElementById('suppliers').innerHTML=suppliers.map((s,i)=>`
-    <div class="item sup">
-      <div class="av">${s.n[0]}</div>
-      <div class="meta">
-        <div class="n">${s.n}
-          ${s.auto?'<span class="chip auto">Авто</span>':''}
-          ${s.low?'<span class="chip low">Низкий баланс</span>':''}
-        </div>
-        <div class="d">${s.d} · ${s.bal} USDT</div>
-        <div class="bar"><i style="width:${Math.round(s.bal/s.cap*100)}%"></i></div>
-      </div>
-      <div class="sw ${s.auto?'on':''}" data-i="${i}"></div>
-    </div>`).join('');
-  document.getElementById('suppliers').addEventListener('click',e=>{
-    const sw=e.target.closest('.sw'); if(sw)sw.classList.toggle('on');
-  });
-  document.querySelectorAll('.set .sw').forEach(sw=>sw.addEventListener('click',()=>sw.classList.toggle('on')));
-
-  // ---- история ----
-  const hist=[
-    {n:'Выплата Playerok',d:'сегодня · 12:40',a:'+640.30',in:true,s:'USDT'},
-    {n:'VexBoost · пополнение',d:'вчера · 23:05',a:'−45.00',in:false,s:'USDT'},
-    {n:'Выплата Playerok',d:'18 окт · 11:02',a:'+512.80',in:true,s:'USDT'},
-    {n:'SMM-Panel #2 · пополнение',d:'17 окт · 09:20',a:'−30.00',in:false,s:'USDT'},
-    {n:'Пополнение казны',d:'15 окт · 14:11',a:'+500.00',in:true,s:'USDT'},
-    {n:'Robux-поставщик',d:'14 окт · 20:33',a:'−60.00',in:false,s:'USDT'},
-  ];
-  function renderHistory(items){
-    document.getElementById('history').innerHTML=items.map(h=>`
-    <div class="item">
-      <div class="av ${h.in?'in':'out'}">${h.in?'↓':'↑'}</div>
-      <div class="meta"><div class="n">${h.n}</div><div class="d">${h.d}</div></div>
-      <div class="amt ${h.in?'in':''} tnum">${h.a} ${h.s}</div>
-    </div>`).join('');
+  function render(d){
+    $('bal').innerHTML=(typeof d.usdt==='number'?fmt(d.usdt):'—')+'<small>USDT</small>';
+    $('sub').textContent=d.live?'Боевой режим — реальные переводы':'Сухой прогон — переводы не отправляются';
+    $('addr').textContent=d.address||'—';
+    $('trx').textContent=(typeof d.trx==='number')?d.trx.toFixed(1):'—';
+    if(d.limits){$('lim-tx').textContent=d.limits.per_tx+' USDT';$('lim-day').textContent=d.limits.daily+' USDT';}
+    $('lim-list').textContent=(d.allowlist&&d.allowlist.length)?d.allowlist.length+' адр.':'выкл.';
+    $('mode').textContent=d.live?'реальные переводы':'сухой прогон';
+    TRANSFERS=Array.isArray(d.transfers)?d.transfers:[];
+    renderAll();
   }
-  renderHistory(hist);
 
-  // ---- график ----
-  const series={
-    7:[8,-5,12,-3,9,-6,15],
-    30:[12,-7,9,-4,14,-9,11,-5,16,-8,10,-3,13,-6,18,-4,9,-7,15,-5,12,-8,17,-4,11,-6,19,-3,14,-9],
-    90:[10,-6,8,-9,14,-5,12,-8,16,-4,9,-7,13,-6,11,-9,17,-5,10,-8,15,-4,12,-7,18,-6,9,-5,14,-9,13,-4,16,-8,11,-6,19,-3,12,-7]
-  };
-  let curRange=30;
-  const svg=document.getElementById('spark');
+  function renderAll(){
+    const from=Date.now()-curRange*864e5;
+    const inRange=TRANSFERS.filter(t=>!t.ts||t.ts>=from);
+    const inc=inRange.filter(t=>t.incoming).reduce((s,t)=>s+Number(t.amount),0);
+    const exp=inRange.filter(t=>!t.incoming).reduce((s,t)=>s+Number(t.amount),0);
+    $('inc').textContent=TRANSFERS.length?'+'+fmt(inc):'—';
+    $('exp').textContent=TRANSFERS.length?'−'+fmt(exp):'—';
+    $('inc-r').textContent=$('exp-r').textContent=curRange+'д';
+    renderHistory(inRange);
+    drawSpark(inRange);
+  }
+
+  function renderHistory(items){
+    const el=$('history');
+    if(!items.length){el.innerHTML='<div class="empty">Операций пока нет</div>';return;}
+    el.innerHTML=items.map(t=>{
+      const inc=t.incoming;
+      const when=t.ts?new Date(t.ts).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+      const who=inc?(t.from||''):(t.to||'');
+      return `<div class="item"><div class="av ${inc?'in':'out'}">${inc?'↓':'↑'}</div>
+        <div class="meta"><div class="n">${inc?'Поступление':'Перевод'} USDT</div>
+        <div class="d">${when}${who?' · …'+String(who).slice(-6):''}</div></div>
+        <div class="amt ${inc?'in':''} tnum">${inc?'+':'−'}${fmt(t.amount)} USDT</div></div>`;
+    }).join('');
+  }
+
+  // ---- график: накопленный баланс по операциям выбранного периода ----
+  const svg=$('spark');
   function cssvar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
-  function drawSpark(r){
-    const data=series[r], W=320,H=120,pad=8;
-    let run=0; const cum=data.map(v=>run+=v);           // накопленный итог
+  function drawSpark(items){
+    const W=320,H=120,pad=8, pts=[...items].reverse();   // от старых к новым
+    if(pts.length<2){svg.innerHTML='<text x="160" y="64" text-anchor="middle" fill="'+cssvar('--faint')+'" font-size="12" font-family="sans-serif">нет данных за период</text>';return;}
+    let run=0; const cum=pts.map(t=>run+=(t.incoming?1:-1)*Number(t.amount));
     const min=Math.min(0,...cum), max=Math.max(...cum,1);
-    const x=i=>pad+i*(W-2*pad)/(data.length-1);
-    const y=v=>H-pad-(v-min)/(max-min)*(H-2*pad);
-    let line='',area='';
-    cum.forEach((v,i)=>{const px=x(i).toFixed(1),py=y(v).toFixed(1);line+=(i?'L':'M')+px+' '+py+' ';});
-    area=line+`L${x(cum.length-1).toFixed(1)} ${H-pad} L${x(0).toFixed(1)} ${H-pad} Z`;
-    const acc=cssvar('--accent'), a2=cssvar('--accent-2');
-    const ex=x(cum.length-1).toFixed(1), ey=y(cum[cum.length-1]).toFixed(1);
-    svg.innerHTML=`
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="${acc}" stop-opacity=".28"/>
-          <stop offset="1" stop-color="${acc}" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
+    const x=i=>pad+i*(W-2*pad)/(cum.length-1);
+    const y=v=>H-pad-(v-min)/((max-min)||1)*(H-2*pad);
+    let line=''; cum.forEach((v,i)=>{line+=(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' ';});
+    const area=line+`L${x(cum.length-1).toFixed(1)} ${H-pad} L${x(0).toFixed(1)} ${H-pad} Z`;
+    const acc=cssvar('--accent'),a2=cssvar('--accent-2');
+    const ex=x(cum.length-1).toFixed(1),ey=y(cum[cum.length-1]).toFixed(1);
+    svg.innerHTML=`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${acc}" stop-opacity=".28"/><stop offset="1" stop-color="${acc}" stop-opacity="0"/></linearGradient></defs>
       <line x1="8" y1="${y(0).toFixed(1)}" x2="312" y2="${y(0).toFixed(1)}" stroke="${cssvar('--line')}" stroke-width="1"/>
       <path d="${area}" fill="url(#g)"/>
       <path d="${line}" fill="none" stroke="${acc}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
       <circle cx="${ex}" cy="${ey}" r="4" fill="${a2}" stroke="var(--surface)" stroke-width="2"/>`;
   }
-  document.getElementById('seg').addEventListener('click',e=>{
-    const b=e.target.closest('button'); if(!b)return;
-    [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
-    curRange=+b.dataset.r; drawSpark(curRange);
-  });
-  drawSpark(curRange);
 
-  // если уже входили с настроенным сервером — сразу тянем реальные данные
+  // ---- тема ----
+  $('theme').addEventListener('click',()=>{
+    const root=document.documentElement, dark=matchMedia('(prefers-color-scheme:dark)').matches;
+    const cur=root.getAttribute('data-theme')||(dark?'dark':'light');
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+    renderAll();
+  });
+
+  // ---- навигация ----
+  const nav=$('nav');
+  nav.addEventListener('click',e=>{const b=e.target.closest('.tab'); if(!b)return;
+    [...nav.children].forEach(t=>t.classList.toggle('on',t===b));
+    document.querySelectorAll('.screen').forEach(sc=>sc.hidden=sc.id!=='s-'+b.dataset.s);
+    document.querySelector('.scroll').scrollTop=0;});
+
+  // ---- период графика ----
+  $('seg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return;
+    [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
+    curRange=+b.dataset.r; renderAll();});
+
+  // ---- выход / смена сервера ----
+  $('logout-row').addEventListener('click',()=>{
+    store.set('kazna_url','');store.set('kazna_key','');CFG={url:'',key:''};
+    document.getElementById('url').value='';document.getElementById('key').value='';
+    login.classList.remove('hid');});
+
+  // старт
+  renderAll();            // пустые состояния, пока нет данных
   if(CFG.url)boot();
 </script>
 
