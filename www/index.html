@@ -190,11 +190,15 @@
       <p>Личный крипто-кошелёк магазина. Войдите по ключу доступа.</p>
     </div>
     <div class="field">
+      <label for="url">Адрес сервера</label>
+      <input id="url" inputmode="url" autocomplete="off" placeholder="https://ваш-сервер:8080" style="letter-spacing:0;font-size:13px">
+    </div>
+    <div class="field">
       <label for="key">Ключ доступа</label>
-      <input id="key" inputmode="text" autocomplete="off" placeholder="••••-••••-••••" value="DEMO-0000-0000">
+      <input id="key" inputmode="text" autocomplete="off" placeholder="••••-••••-••••">
     </div>
     <button class="unlock" id="unlock">Войти</button>
-    <p class="hint">Ключ хранится на сервере. Переустановишь приложение — данные на месте.</p>
+    <p class="hint">Пусто — демо-режим с примерными данными. С адресом и ключом — реальный баланс кошелька.</p>
   </section>
 
   <!-- шапка -->
@@ -211,8 +215,8 @@
     <section class="screen" id="s-home">
       <div class="balance">
         <div class="lab"><span class="dot"></span> Баланс казны · USDT</div>
-        <div class="amount tnum">1 248.60<small>USDT</small></div>
-        <div class="sub tnum">≈ 110 870 ₽ · за 30 дней <b>+18.4%</b></div>
+        <div class="amount tnum" id="bal">1 248.60<small>USDT</small></div>
+        <div class="sub tnum" id="sub">≈ 110 870 ₽ · за 30 дней <b>+18.4%</b></div>
         <div class="actions">
           <button class="act"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Пополнить</button>
           <button class="act"><span><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>Вывести</button>
@@ -303,10 +307,45 @@
 </div>
 
 <script>
-  // ---- вход ----
+  // ---- вход и подключение к серверу ----
   const login=document.getElementById('login');
-  document.getElementById('unlock').addEventListener('click',()=>login.classList.add('hid'));
-  document.getElementById('key').addEventListener('keydown',e=>{if(e.key==='Enter')login.classList.add('hid')});
+  const store={get:k=>{try{return localStorage.getItem(k)||''}catch(e){return''}},
+               set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+  let CFG={url:store.get('kazna_url'),key:store.get('kazna_key')};
+  // уже входили раньше — не показываем экран входа
+  if(CFG.url||CFG.key){login.classList.add('hid');document.getElementById('url').value=CFG.url;document.getElementById('key').value=CFG.key;}
+  function enter(){
+    CFG={url:document.getElementById('url').value.trim().replace(/\/$/,''),key:document.getElementById('key').value.trim()};
+    store.set('kazna_url',CFG.url);store.set('kazna_key',CFG.key);
+    login.classList.add('hid');boot();
+  }
+  document.getElementById('unlock').addEventListener('click',enter);
+  document.getElementById('key').addEventListener('keydown',e=>{if(e.key==='Enter')enter()});
+
+  async function boot(){
+    if(!CFG.url){return;}                       // демо-режим — оставляем примерные данные
+    try{
+      const r=await fetch(CFG.url+'/api/summary',{headers:{'X-Access-Key':CFG.key}});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const d=await r.json();
+      document.querySelector('.demo').hidden=true;   // это реальные данные, не пример
+      if(typeof d.usdt==='number'){
+        const [a,b]=d.usdt.toFixed(2).split('.');
+        document.getElementById('bal').innerHTML=(+a).toLocaleString('ru-RU')+'.'+b+'<small>USDT</small>';
+      }
+      document.getElementById('sub').textContent=(d.live?'Боевой режим':'Сухой прогон')+
+        (typeof d.trx==='number'?' · газ '+d.trx.toFixed(0)+' TRX':'');
+      if(d.address)document.querySelector('.addr').textContent=d.address;
+      if(Array.isArray(d.transfers)&&d.transfers.length){
+        renderHistory(d.transfers.map(t=>({
+          n:(t.incoming?'Поступление':'Перевод')+' USDT',
+          d:t.from?('…'+String(t.from).slice(-6)):'',
+          a:(t.incoming?'+':'−')+Number(t.amount).toFixed(2),in:t.incoming,s:'USDT'})));
+      }
+    }catch(e){
+      document.getElementById('sub').textContent='нет связи с сервером — показываю демо';
+    }
+  }
 
   // ---- тема ----
   document.getElementById('theme').addEventListener('click',()=>{
@@ -366,12 +405,15 @@
     {n:'Пополнение казны',d:'15 окт · 14:11',a:'+500.00',in:true,s:'USDT'},
     {n:'Robux-поставщик',d:'14 окт · 20:33',a:'−60.00',in:false,s:'USDT'},
   ];
-  document.getElementById('history').innerHTML=hist.map(h=>`
+  function renderHistory(items){
+    document.getElementById('history').innerHTML=items.map(h=>`
     <div class="item">
       <div class="av ${h.in?'in':'out'}">${h.in?'↓':'↑'}</div>
       <div class="meta"><div class="n">${h.n}</div><div class="d">${h.d}</div></div>
       <div class="amt ${h.in?'in':''} tnum">${h.a} ${h.s}</div>
     </div>`).join('');
+  }
+  renderHistory(hist);
 
   // ---- график ----
   const series={
@@ -411,6 +453,9 @@
     curRange=+b.dataset.r; drawSpark(curRange);
   });
   drawSpark(curRange);
+
+  // если уже входили с настроенным сервером — сразу тянем реальные данные
+  if(CFG.url)boot();
 </script>
 
 </body>

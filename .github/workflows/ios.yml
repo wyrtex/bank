@@ -7,7 +7,8 @@ name: Build unsigned IPA
 on:
   workflow_dispatch:      # запуск вручную кнопкой в Actions
   push:
-    branches: [ main ]
+    branches: [ main, 'claude/**' ]
+    paths: [ 'www/**', 'capacitor.config.json', 'package.json', '.github/workflows/ios.yml' ]
 
 jobs:
   build:

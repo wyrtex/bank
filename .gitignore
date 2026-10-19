@@ -11,3 +11,9 @@ DerivedData/
 *.key
 secrets/
 wallet-*.json
+
+# рантайм-данные и питон-кэш
+data/
+__pycache__/
+*.pyc
+.venv/
