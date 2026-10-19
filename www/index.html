@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  html{-webkit-text-size-adjust:100%}
+  :root{padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
+  body{margin:0}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<title>Казна</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Roboto+Mono:wght@500;600&display=swap">
+<style>
+  /* Layout: одноэкранное мобильное приложение — шапка, скролл-контент, нижняя навигация.
+     Акцент сосредоточен в карточке баланса; остальное спокойное. */
+  :root{
+    --bg:#f3f5f9; --surface:#ffffff; --surface-2:#eef1f7; --line:rgba(16,20,32,.09);
+    --fg:#111522; --muted:#636a7e; --faint:#9aa1b4;
+    --accent:#10b981; --accent-2:#4f7cff; --pos:#0ca678; --neg:#e5484d; --warn:#e0820b;
+    --shadow:0 10px 30px -12px rgba(16,20,40,.22);
+    --r:18px;
+    --sans:"Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"Roboto Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#090a0f; --surface:#14161e; --surface-2:#1b1e28; --line:rgba(255,255,255,.08);
+    --fg:#eef1f7; --muted:#8b92a6; --faint:#5a6177;
+    --accent:#2ee6a6; --accent-2:#6b8cff; --pos:#2ee6a6; --neg:#ff6b6b; --warn:#ffb020;
+    --shadow:0 18px 40px -18px rgba(0,0,0,.7); color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#090a0f; --surface:#14161e; --surface-2:#1b1e28; --line:rgba(255,255,255,.08);
+    --fg:#eef1f7; --muted:#8b92a6; --faint:#5a6177;
+    --accent:#2ee6a6; --accent-2:#6b8cff; --pos:#2ee6a6; --neg:#ff6b6b; --warn:#ffb020;
+    --shadow:0 18px 40px -18px rgba(0,0,0,.7); color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);
+    font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .tnum{font-variant-numeric:tabular-nums}
+  .mono{font-family:var(--mono)}
+
+  .app{height:100%;max-width:460px;margin:0 auto;display:flex;flex-direction:column;position:relative;background:var(--bg)}
+
+  /* ----- шапка ----- */
+  .top{position:sticky;top:env(safe-area-inset-top,0);z-index:5;background:var(--bg);
+    padding:12px max(16px,env(safe-area-inset-left,0)) 8px max(16px,env(safe-area-inset-right,0));
+    display:flex;align-items:center;gap:12px}
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0);background:var(--bg);z-index:10}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px}
+  .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:grid;place-items:center;color:#06110c;font-weight:900;font-size:15px}
+  .demo{margin-left:auto;font-size:11px;font-weight:700;color:var(--warn);
+    border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);padding:3px 8px;border-radius:999px;letter-spacing:.3px}
+  .icon-btn{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--surface);
+    color:var(--fg);display:grid;place-items:center;cursor:pointer}
+
+  /* ----- скролл-зона ----- */
+  .scroll{flex:1;overflow-y:auto;overflow-x:hidden;
+    padding:4px max(16px,env(safe-area-inset-left,0)) 96px max(16px,env(safe-area-inset-right,0))}
+  .screen[hidden]{display:none!important}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--faint);margin:20px 2px 10px}
+
+  /* ----- карточка баланса ----- */
+  .balance{position:relative;overflow:hidden;border-radius:24px;padding:22px 20px 18px;color:#fff;
+    background:linear-gradient(135deg,#13201c 0%,#0f1830 55%,#121224 100%);box-shadow:var(--shadow)}
+  .balance::after{content:"";position:absolute;inset:-40% -10% auto auto;width:70%;height:170%;
+    background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 40%,transparent),transparent);filter:blur(10px)}
+  .balance .lab{position:relative;font-size:12.5px;color:#aeb6c6;letter-spacing:.3px;display:flex;align-items:center;gap:7px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
+  .amount{position:relative;font-size:40px;font-weight:800;margin:7px 0 2px;letter-spacing:-1px}
+  .amount small{font-size:19px;font-weight:700;color:#c7cdda;margin-left:4px}
+  .sub{position:relative;color:#9ea6b8;font-size:13px}
+  .sub b{color:var(--accent);font-weight:700}
+
+  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .act{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:12px 6px;
+    display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--fg)}
+  .act span{width:34px;height:34px;border-radius:11px;background:var(--surface-2);display:grid;place-items:center}
+  .act svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.9}
+
+  /* ----- график ----- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+  .chart-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .chart-head .t{font-size:13px;color:var(--muted);font-weight:600}
+  .seg{display:flex;gap:2px;background:var(--surface-2);border-radius:9px;padding:3px}
+  .seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:700;
+    padding:4px 9px;border-radius:7px;cursor:pointer}
+  .seg button.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  svg.spark{width:100%;height:120px;display:block}
+
+  /* ----- строки/списки ----- */
+  .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 14px}
+  .stat .k{font-size:12px;color:var(--muted);font-weight:600}
+  .stat .v{font-size:20px;font-weight:800;margin-top:3px}
+
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:12px 14px}
+  .av{width:42px;height:42px;border-radius:12px;background:var(--surface-2);display:grid;place-items:center;
+    font-weight:800;font-size:15px;flex:0 0 auto}
+  .av.in{color:var(--pos)} .av.out{color:var(--fg)}
+  .item .meta{min-width:0;flex:1}
+  .item .meta .n{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .meta .d{font-size:12px;color:var(--muted);margin-top:1px}
+  .item .amt{font-weight:800;white-space:nowrap}
+  .amt.in{color:var(--pos)}
+
+  .sup .meta .n{display:flex;align-items:center;gap:8px}
+  .chip{font-size:10.5px;font-weight:800;letter-spacing:.3px;padding:2px 7px;border-radius:999px;text-transform:uppercase}
+  .chip.auto{color:var(--pos);background:color-mix(in srgb,var(--pos) 16%,transparent)}
+  .chip.low{color:var(--warn);background:color-mix(in srgb,var(--warn) 18%,transparent)}
+  .bar{height:6px;border-radius:4px;background:var(--surface-2);margin-top:8px;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+
+  /* переключатель */
+  .sw{width:46px;height:28px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);
+    position:relative;cursor:pointer;flex:0 0 auto;transition:background .18s}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .18s}
+  .sw.on{background:var(--accent)} .sw.on::after{left:20px}
+
+  /* баннер одобрения */
+  .approve{border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);
+    background:color-mix(in srgb,var(--warn) 10%,transparent);border-radius:16px;padding:14px}
+  .approve .n{font-weight:800;display:flex;align-items:center;gap:8px}
+  .approve .d{font-size:13px;color:var(--muted);margin:5px 0 12px}
+  .approve .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{border:0;border-radius:12px;padding:11px;font:inherit;font-weight:800;cursor:pointer}
+  .btn.go{background:var(--accent);color:#06110c} .btn.no{background:var(--surface-2);color:var(--fg)}
+
+  .set{display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+  .set+.set{margin-top:8px}
+  .set .k{font-weight:700} .set .d{font-size:12px;color:var(--muted);margin-top:2px}
+  .set .r{margin-left:auto;text-align:right;font-weight:700;color:var(--muted)}
+  .addr{font-size:12.5px;word-break:break-all;color:var(--muted)}
+
+  .guide ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:11px}
+  .guide li{font-size:13.5px;line-height:1.5;color:var(--fg);padding-left:4px}
+  .guide li::marker{color:var(--accent);font-weight:800}
+  .guide b{font-weight:700}
+  .note{margin-top:14px;font-size:12.5px;line-height:1.5;color:var(--muted);
+    background:var(--surface-2);border-radius:12px;padding:11px 13px}
+
+  /* ----- нижняя навигация ----- */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:8;background:color-mix(in srgb,var(--surface) 92%,transparent);
+    backdrop-filter:blur(14px);border-top:1px solid var(--line);
+    padding:8px max(16px,env(safe-area-inset-left,0)) calc(8px + env(safe-area-inset-bottom,0)) max(16px,env(safe-area-inset-right,0));
+    display:grid;grid-template-columns:repeat(4,1fr);max-width:460px;margin:0 auto}
+  .tab{border:0;background:transparent;color:var(--faint);display:flex;flex-direction:column;align-items:center;gap:4px;
+    font:inherit;font-size:10.5px;font-weight:700;cursor:pointer;padding:4px 0}
+  .tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .tab.on{color:var(--accent)}
+
+  /* ----- экран входа ----- */
+  .login{position:absolute;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;
+    justify-content:center;gap:18px;padding:0 28px env(safe-area-inset-bottom,0)}
+  .login.hid{display:none}
+  .login .logo{width:58px;height:58px;border-radius:17px;font-size:27px}
+  .login h1{font-size:26px;font-weight:800;margin:14px 0 0;letter-spacing:-.3px}
+  .login p{color:var(--muted);margin:0;font-size:14px}
+  .field{display:flex;flex-direction:column;gap:7px;margin-top:6px}
+  .field label{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.3px}
+  .field input{font:inherit;font-family:var(--mono);letter-spacing:3px;padding:14px 16px;border-radius:14px;
+    border:1px solid var(--line);background:var(--surface);color:var(--fg);width:100%}
+  .field input:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .unlock{background:var(--accent);color:#06110c;border:0;border-radius:14px;padding:15px;font:inherit;font-weight:800;
+    font-size:16px;cursor:pointer;margin-top:4px}
+  .hint{font-size:12px;color:var(--faint);text-align:center}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app" aria-hidden="false">
+  <!-- вход -->
+  <section class="login" id="login">
+    <div class="logo">К</div>
+    <div>
+      <h1>Казна</h1>
+      <p>Личный крипто-кошелёк магазина. Войдите по ключу доступа.</p>
+    </div>
+    <div class="field">
+      <label for="key">Ключ доступа</label>
+      <input id="key" inputmode="text" autocomplete="off" placeholder="••••-••••-••••" value="DEMO-0000-0000">
+    </div>
+    <button class="unlock" id="unlock">Войти</button>
+    <p class="hint">Ключ хранится на сервере. Переустановишь приложение — данные на месте.</p>
+  </section>
+
+  <!-- шапка -->
+  <header class="top">
+    <div class="brand"><div class="logo">К</div> Казна</div>
+    <div class="demo">ПРИМЕР ДАННЫХ</div>
+    <button class="icon-btn" id="theme" title="Тема" aria-label="Сменить тему">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+    </button>
+  </header>
+
+  <div class="scroll">
+    <!-- ГЛАВНАЯ -->
+    <section class="screen" id="s-home">
+      <div class="balance">
+        <div class="lab"><span class="dot"></span> Баланс казны · USDT</div>
+        <div class="amount tnum">1 248.60<small>USDT</small></div>
+        <div class="sub tnum">≈ 110 870 ₽ · за 30 дней <b>+18.4%</b></div>
+        <div class="actions">
+          <button class="act"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Пополнить</button>
+          <button class="act"><span><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>Вывести</button>
+          <button class="act"><span><svg viewBox="0 0 24 24"><path d="M4 4h16v12H4zM4 20h16"/></svg></span>Оплатить</button>
+        </div>
+      </div>
+
+      <div class="eyebrow">Движение средств</div>
+      <div class="card">
+        <div class="chart-head">
+          <div class="t tnum">Приход и расход, ₽</div>
+          <div class="seg" id="seg">
+            <button data-r="7">7д</button><button data-r="30" class="on">30д</button><button data-r="90">90д</button>
+          </div>
+        </div>
+        <svg class="spark" id="spark" viewBox="0 0 320 120" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="k">Приход · октябрь</div><div class="v tnum" style="color:var(--pos)">+64 200 ₽</div></div>
+        <div class="stat"><div class="k">Расход · октябрь</div><div class="v tnum">−38 940 ₽</div></div>
+      </div>
+
+      <div class="eyebrow">Нужно решение</div>
+      <div class="approve" id="approve">
+        <div class="n">⚠️ Платёж выше лимита</div>
+        <div class="d">VexBoost — пополнение <b>95 USDT</b> (≈ 8 440 ₽). Разовый лимит 50 USDT, нужно твоё подтверждение.</div>
+        <div class="btns"><button class="btn go" id="ap-go">Подтвердить</button><button class="btn no" id="ap-no">Отклонить</button></div>
+      </div>
+    </section>
+
+    <!-- ПЛАТЕЖИ / ПОСТАВЩИКИ -->
+    <section class="screen" id="s-pay" hidden>
+      <div class="eyebrow">Поставщики · авто-оплата</div>
+      <div class="list" id="suppliers"></div>
+      <div class="eyebrow">Правила</div>
+      <div class="set"><div><div class="k">Разовый лимит</div><div class="d">Больше — спрашивать</div></div><div class="r tnum">50 USDT</div></div>
+      <div class="set"><div><div class="k">Дневной лимит</div><div class="d">Суммарно за сутки</div></div><div class="r tnum">300 USDT</div></div>
+      <div class="set"><div><div class="k">Белый список</div><div class="d">Куда вообще можно платить</div></div><div class="r">4 адреса</div></div>
+    </section>
+
+    <!-- ИСТОРИЯ -->
+    <section class="screen" id="s-hist" hidden>
+      <div class="eyebrow">История операций</div>
+      <div class="list" id="history"></div>
+    </section>
+
+    <!-- НАСТРОЙКИ -->
+    <section class="screen" id="s-set" hidden>
+      <div class="eyebrow">Как завести кошелёк</div>
+      <div class="card guide">
+        <ol>
+          <li><b>Поставь TronLink</b> из App Store (официальный кошелёк сети Tron, где живёт USDT&nbsp;TRC20).</li>
+          <li><b>Создай кошелёк</b> → «Create Wallet». Это будет <b>холодный</b> кошелёк — основной сейф.</li>
+          <li><b>Сохрани seed-фразу офлайн</b>: 12 слов на бумагу, никому и никуда не вводи. Кто знает фразу — владеет деньгами.</li>
+          <li><b>Заведи второй, «горячий» кошелёк</b> (ещё раз Create Wallet) — <b>только для бота</b>. На нём держим оборотку, не весь баланс.</li>
+          <li><b>Скопируй адрес</b> горячего кошелька (начинается на <span class="mono">T…</span>) — его дадим боту и укажем в выплатах Playerok.</li>
+          <li><b>Купи немного TRX</b> (~20–50) — это «бензин» за переводы USDT. Без него перевод не уйдёт.</li>
+          <li><b>Бесплатный ключ TronGrid</b> (trongrid.io) — доступ бота к сети. Зарегайся, создай API Key.</li>
+          <li><b>Приватный ключ горячего</b> кошелька экспортируешь в TronLink и отдаёшь боту (на сервер, зашифрованным). Ключ холодного — никогда и никому.</li>
+        </ol>
+        <div class="note">⚠️ Переводы крипты необратимы. Поэтому у бота белый список адресов и лимиты, а на горячем кошельке — только оборотные деньги.</div>
+      </div>
+
+      <div class="eyebrow">Кошелёк · USDT (TRC20)</div>
+      <div class="card">
+        <div class="set" style="border:0;background:transparent;padding:0">
+          <div style="min-width:0"><div class="k">Горячий кошелёк</div><div class="addr mono">TJ9k…оборотка · пополняется с Playerok</div></div>
+          <div class="sw on" style="margin-left:auto"></div>
+        </div>
+        <div class="bar"><i style="width:62%"></i></div>
+        <div class="d" style="font-size:12px;color:var(--muted);margin-top:8px">Оборотка 1 248 / холодный резерв скрыт</div>
+      </div>
+      <div class="eyebrow">Безопасность</div>
+      <div class="set"><div><div class="k">Вход по ключу доступа</div><div class="d">Один ключ на все устройства</div></div><div class="sw on"></div></div>
+      <div class="set"><div><div class="k">Приём выплат Playerok</div><div class="d">Сразу в USDT на этот кошелёк</div></div><div class="sw on"></div></div>
+      <div class="set"><div><div class="k">Подтверждать крупные платежи</div><div class="d">Выше разового лимита</div></div><div class="sw on"></div></div>
+    </section>
+  </div>
+
+  <!-- навигация -->
+  <nav class="nav" id="nav">
+    <button class="tab on" data-s="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>Главная</button>
+    <button class="tab" data-s="pay"><svg viewBox="0 0 24 24"><path d="M3 7h18v12H3zM3 11h18M7 15h4"/></svg>Платежи</button>
+    <button class="tab" data-s="hist"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2M21 12a9 9 0 1 1-3-6.7"/></svg>История</button>
+    <button class="tab" data-s="set"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Настройки</button>
+  </nav>
+</div>
+
+<script>
+  // ---- вход ----
+  const login=document.getElementById('login');
+  document.getElementById('unlock').addEventListener('click',()=>login.classList.add('hid'));
+  document.getElementById('key').addEventListener('keydown',e=>{if(e.key==='Enter')login.classList.add('hid')});
+
+  // ---- тема ----
+  document.getElementById('theme').addEventListener('click',()=>{
+    const root=document.documentElement;
+    const dark=matchMedia('(prefers-color-scheme:dark)').matches;
+    const cur=root.getAttribute('data-theme')|| (dark?'dark':'light');
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+    drawSpark(curRange);
+  });
+
+  // ---- навигация ----
+  const nav=document.getElementById('nav');
+  nav.addEventListener('click',e=>{
+    const b=e.target.closest('.tab'); if(!b)return;
+    [...nav.children].forEach(t=>t.classList.toggle('on',t===b));
+    const s=b.dataset.s;
+    document.querySelectorAll('.screen').forEach(sc=>sc.hidden = sc.id!=='s-'+s);
+    document.querySelector('.scroll').scrollTop=0;
+  });
+
+  // ---- одобрение ----
+  document.getElementById('ap-go').addEventListener('click',()=>done('Платёж подтверждён'));
+  document.getElementById('ap-no').addEventListener('click',()=>done('Платёж отклонён'));
+  function done(t){const a=document.getElementById('approve');
+    a.innerHTML='<div class="n">✅ '+t+'</div><div class="d" style="margin:5px 0 0">Других решений пока нет.</div>';}
+
+  // ---- поставщики ----
+  const suppliers=[
+    {n:'VexBoost',d:'накрутка · SMM',bal:18,cap:120,auto:true,low:true},
+    {n:'SMM-Panel #2',d:'репосты/сохранения',bal:84,cap:120,auto:true,low:false},
+    {n:'Robux-поставщик',d:'через крипто-инвойс',bal:60,cap:120,auto:false,low:false},
+  ];
+  document.getElementById('suppliers').innerHTML=suppliers.map((s,i)=>`
+    <div class="item sup">
+      <div class="av">${s.n[0]}</div>
+      <div class="meta">
+        <div class="n">${s.n}
+          ${s.auto?'<span class="chip auto">Авто</span>':''}
+          ${s.low?'<span class="chip low">Низкий баланс</span>':''}
+        </div>
+        <div class="d">${s.d} · ${s.bal} USDT</div>
+        <div class="bar"><i style="width:${Math.round(s.bal/s.cap*100)}%"></i></div>
+      </div>
+      <div class="sw ${s.auto?'on':''}" data-i="${i}"></div>
+    </div>`).join('');
+  document.getElementById('suppliers').addEventListener('click',e=>{
+    const sw=e.target.closest('.sw'); if(sw)sw.classList.toggle('on');
+  });
+  document.querySelectorAll('.set .sw').forEach(sw=>sw.addEventListener('click',()=>sw.classList.toggle('on')));
+
+  // ---- история ----
+  const hist=[
+    {n:'Выплата Playerok',d:'сегодня · 12:40',a:'+640.30',in:true,s:'USDT'},
+    {n:'VexBoost · пополнение',d:'вчера · 23:05',a:'−45.00',in:false,s:'USDT'},
+    {n:'Выплата Playerok',d:'18 окт · 11:02',a:'+512.80',in:true,s:'USDT'},
+    {n:'SMM-Panel #2 · пополнение',d:'17 окт · 09:20',a:'−30.00',in:false,s:'USDT'},
+    {n:'Пополнение казны',d:'15 окт · 14:11',a:'+500.00',in:true,s:'USDT'},
+    {n:'Robux-поставщик',d:'14 окт · 20:33',a:'−60.00',in:false,s:'USDT'},
+  ];
+  document.getElementById('history').innerHTML=hist.map(h=>`
+    <div class="item">
+      <div class="av ${h.in?'in':'out'}">${h.in?'↓':'↑'}</div>
+      <div class="meta"><div class="n">${h.n}</div><div class="d">${h.d}</div></div>
+      <div class="amt ${h.in?'in':''} tnum">${h.a} ${h.s}</div>
+    </div>`).join('');
+
+  // ---- график ----
+  const series={
+    7:[8,-5,12,-3,9,-6,15],
+    30:[12,-7,9,-4,14,-9,11,-5,16,-8,10,-3,13,-6,18,-4,9,-7,15,-5,12,-8,17,-4,11,-6,19,-3,14,-9],
+    90:[10,-6,8,-9,14,-5,12,-8,16,-4,9,-7,13,-6,11,-9,17,-5,10,-8,15,-4,12,-7,18,-6,9,-5,14,-9,13,-4,16,-8,11,-6,19,-3,12,-7]
+  };
+  let curRange=30;
+  const svg=document.getElementById('spark');
+  function cssvar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+  function drawSpark(r){
+    const data=series[r], W=320,H=120,pad=8;
+    let run=0; const cum=data.map(v=>run+=v);           // накопленный итог
+    const min=Math.min(0,...cum), max=Math.max(...cum,1);
+    const x=i=>pad+i*(W-2*pad)/(data.length-1);
+    const y=v=>H-pad-(v-min)/(max-min)*(H-2*pad);
+    let line='',area='';
+    cum.forEach((v,i)=>{const px=x(i).toFixed(1),py=y(v).toFixed(1);line+=(i?'L':'M')+px+' '+py+' ';});
+    area=line+`L${x(cum.length-1).toFixed(1)} ${H-pad} L${x(0).toFixed(1)} ${H-pad} Z`;
+    const acc=cssvar('--accent'), a2=cssvar('--accent-2');
+    const ex=x(cum.length-1).toFixed(1), ey=y(cum[cum.length-1]).toFixed(1);
+    svg.innerHTML=`
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="${acc}" stop-opacity=".28"/>
+          <stop offset="1" stop-color="${acc}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <line x1="8" y1="${y(0).toFixed(1)}" x2="312" y2="${y(0).toFixed(1)}" stroke="${cssvar('--line')}" stroke-width="1"/>
+      <path d="${area}" fill="url(#g)"/>
+      <path d="${line}" fill="none" stroke="${acc}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${ex}" cy="${ey}" r="4" fill="${a2}" stroke="var(--surface)" stroke-width="2"/>`;
+  }
+  document.getElementById('seg').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
+    curRange=+b.dataset.r; drawSpark(curRange);
+  });
+  drawSpark(curRange);
+</script>
+
+</body>
+</html>

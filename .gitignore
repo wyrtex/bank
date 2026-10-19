@@ -1,0 +1,13 @@
+# зависимости и сборки
+node_modules/
+ios/
+*.ipa
+*.zip
+build/
+DerivedData/
+
+# секреты — НИКОГДА в репозиторий (ключи кошелька, токены, .env)
+.env
+*.key
+secrets/
+wallet-*.json

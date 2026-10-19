@@ -1,0 +1,57 @@
+name: Build unsigned IPA
+
+# Собирает НЕПОДПИСАННЫЙ .ipa на macOS-раннере GitHub.
+# Готовый файл лежит в артефактах сборки (вкладка Actions -> запуск -> Artifacts).
+# Скачиваешь его и подписываешь своим сертификатом в eSign — и ставишь на айфон.
+
+on:
+  workflow_dispatch:      # запуск вручную кнопкой в Actions
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Установить зависимости
+        run: npm install
+
+      - name: Сгенерировать iOS-проект (Capacitor)
+        run: |
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Сборка без подписи
+        run: |
+          cd ios/App
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean build
+
+      - name: Упаковать в .ipa
+        run: |
+          cd ios/App/build/Build/Products/Release-iphoneos
+          mkdir -p Payload
+          cp -R App.app Payload/
+          zip -qry Kazna-unsigned.ipa Payload
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          mv Kazna-unsigned.ipa "$GITHUB_WORKSPACE/out/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kazna-unsigned-ipa
+          path: out/Kazna-unsigned.ipa
+          if-no-files-found: error
