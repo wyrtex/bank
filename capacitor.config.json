@@ -1,0 +1,9 @@
+{
+  "appId": "com.kazna.wallet",
+  "appName": "Казна",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#090a0f"
+  }
+}
