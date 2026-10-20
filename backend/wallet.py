@@ -1,5 +1,9 @@
 """Кошелёк USDT (TRC20, сеть Tron): баланс, история, перевод с защитой.
 
+Чтение (баланс, история) идёт через REST TronGrid и требует только `requests` — ничего не
+компилируется. Тяжёлый `tronpy` нужен ТОЛЬКО для реальной отправки перевода (ставится отдельно,
+requirements-live.txt) и подгружается лениво.
+
 Безопасность денег (переводы необратимы):
 - белый список: платить можно только на заранее внесённые адреса;
 - лимит на один перевод и суммарный дневной лимит;
@@ -85,44 +89,37 @@ class TronWallet:
     def __init__(self, settings: Settings, ledger: Ledger):
         self.s = settings
         self.ledger = ledger
-        self._client = None
-        self._contract = None
 
-    # ---------- подключение к сети (ленивое) ----------
+    # ---------- чтение через REST TronGrid (только requests, ничего не компилируется) ----------
 
-    def _conn(self):
-        if self._client is None:
-            from tronpy import Tron
-            from tronpy.providers import HTTPProvider
-            provider = HTTPProvider(self.s.node_url, api_key=self.s.tron_api_key or None)
-            self._client = Tron(provider=provider)
-            self._contract = self._client.get_contract(USDT_CONTRACT)
-        return self._client, self._contract
+    def _get(self, path: str, **params) -> dict:
+        import requests
+        headers = {"TRON-PRO-API-KEY": self.s.tron_api_key} if self.s.tron_api_key else {}
+        r = requests.get(f"{self.s.node_url}{path}", params=params, headers=headers, timeout=20)
+        r.raise_for_status()
+        return r.json()
 
-    # ---------- чтение (безопасно) ----------
+    def _account(self) -> dict:
+        data = self._get(f"/v1/accounts/{self.s.address}").get("data") or []
+        return data[0] if data else {}
 
     def usdt_balance(self) -> float:
-        _, contract = self._conn()
-        raw = contract.functions.balanceOf(self.s.address)
-        return raw / 10 ** USDT_DECIMALS
+        for entry in self._account().get("trc20") or []:
+            if USDT_CONTRACT in entry:
+                return int(entry[USDT_CONTRACT]) / 10 ** USDT_DECIMALS
+        return 0.0
 
     def trx_balance(self) -> float:
-        client, _ = self._conn()
-        return client.get_account_balance(self.s.address)
+        return (self._account().get("balance", 0) or 0) / 1_000_000  # SUN -> TRX
 
     def recent_transfers(self, limit: int = 20) -> list[dict]:
-        """Последние движения USDT по адресу — через публичный REST TronGrid."""
-        import requests
-        url = f"{self.s.node_url}/v1/accounts/{self.s.address}/transactions/trc20"
-        headers = {"TRON-PRO-API-KEY": self.s.tron_api_key} if self.s.tron_api_key else {}
-        r = requests.get(url, params={"limit": limit, "contract_address": USDT_CONTRACT},
-                         headers=headers, timeout=20)
-        r.raise_for_status()
+        data = self._get(f"/v1/accounts/{self.s.address}/transactions/trc20",
+                         limit=limit, contract_address=USDT_CONTRACT).get("data", [])
         out = []
-        for t in r.json().get("data", []):
-            amount = int(t.get("value", 0)) / 10 ** int(t.get("token_info", {}).get("decimals", USDT_DECIMALS))
-            incoming = t.get("to") == self.s.address
-            out.append({"ts": t.get("block_timestamp"), "amount": amount, "incoming": incoming,
+        for t in data:
+            dec = int(t.get("token_info", {}).get("decimals", USDT_DECIMALS))
+            out.append({"ts": t.get("block_timestamp"), "amount": int(t.get("value", 0)) / 10 ** dec,
+                        "incoming": t.get("to") == self.s.address,
                         "from": t.get("from"), "to": t.get("to"), "tx": t.get("transaction_id")})
         return out
 
@@ -134,8 +131,7 @@ class TronWallet:
                                    daily_limit=self.s.daily_limit, spent_today=self.ledger.spent_today(today))
         if not ok:
             # «больше лимита на перевод» — это не запрет, а повод спросить продавца
-            needs = reason.startswith("больше лимита")
-            return Decision(False, reason, needs_approval=needs)
+            return Decision(False, reason, needs_approval=reason.startswith("больше лимита"))
         return Decision(True)
 
     def send_usdt(self, to: str, amount: float) -> dict:
@@ -150,8 +146,18 @@ class TronWallet:
             self.ledger.record(today, to, amount, tx="DRY-RUN")
             return {"status": "dry_run", "to": to, "amount": amount,
                     "note": "WALLET_LIVE=0 — реальный перевод не выполнен"}
-        client, contract = self._conn()
-        from tronpy.keys import PrivateKey
+        # реальный перевод — нужен tronpy (pip install -r backend/requirements-live.txt)
+        try:
+            from tronpy import Tron
+            from tronpy.keys import PrivateKey
+            from tronpy.providers import HTTPProvider
+        except ImportError:
+            return {"status": "blocked", "reason": "для реальных переводов не установлен tronpy "
+                                                   "(pip install -r backend/requirements-live.txt)"}
+        if not self.s.private_key:
+            return {"status": "blocked", "reason": "не задан WALLET_PRIVATE_KEY в backend/.env"}
+        client = Tron(provider=HTTPProvider(self.s.node_url, api_key=self.s.tron_api_key or None))
+        contract = client.get_contract(USDT_CONTRACT)
         priv = PrivateKey(bytes.fromhex(self.s.private_key))
         txn = (contract.functions.transfer(to, int(round(amount * 10 ** USDT_DECIMALS)))
                .with_owner(self.s.address).fee_limit(40_000_000).build().sign(priv).broadcast())
