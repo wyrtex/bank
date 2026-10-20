@@ -40,17 +40,16 @@
 проверяется, но в сеть ничего не уходит. Реальные переводы включаешь осознанно (`WALLET_LIVE=1`) после
 теста на копейках.
 
-Запуск (из корня репозитория):
+Базовый сервер работает на чистой стандартной библиотеке Python — **устанавливать ничего не нужно**.
+Запуск из корня репозитория:
 ```
-python3 -m venv venv
-./venv/bin/pip install -r backend/requirements.txt
 cp backend/.env.example backend/.env   # заполни TRON_API_KEY, WALLET_ADDRESS, ACCESS_KEY
-./venv/bin/uvicorn backend.server:app --host 127.0.0.1 --port 8080
+python3 -m backend.server              # слушает 127.0.0.1:8080 (меняется через HOST/PORT)
 ```
 `WALLET_PRIVATE_KEY` для баланса и сухого прогона **не нужен** — оставь пустым, впишешь перед включением
 реальных переводов. Для реальной отправки (`WALLET_LIVE=1`) доставь `tronpy`:
-`./venv/bin/pip install -r backend/requirements-live.txt` (на Python 3.14 может не собраться — тогда
-ставь под Python 3.11/3.12).
+`pip install -r backend/requirements-live.txt` (на Python 3.14 может не собраться — тогда ставь под
+Python 3.11/3.12; баланс и сухой прогон от этого не зависят).
 В приложении на экране входа укажи адрес сервера (`https://твой-сервер:8080`) и тот же `ACCESS_KEY` —
 приложение покажет реальный баланс и историю. Без адреса — демо-режим с примерными данными.
 

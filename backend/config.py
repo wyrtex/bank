@@ -28,13 +28,22 @@ class Settings:
     node_url: str = "https://api.trongrid.io"
 
 
-def load() -> Settings:
-    try:  # подхватываем backend/.env, если он есть, чтобы не экспортировать переменные вручную
-        from dotenv import load_dotenv
-        from pathlib import Path
-        load_dotenv(Path(__file__).resolve().parent / ".env")
+def _load_env_file(path) -> None:
+    """Простой разбор backend/.env без сторонних пакетов. Реальные переменные окружения в приоритете."""
+    try:
+        for line in path.read_text("utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
     except Exception:
         pass
+
+
+def load() -> Settings:
+    from pathlib import Path
+    _load_env_file(Path(__file__).resolve().parent / ".env")
     env = os.environ.get
     return Settings(
         tron_api_key=env("TRON_API_KEY", "").strip(),

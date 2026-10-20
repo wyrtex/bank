@@ -1,43 +1,30 @@
-"""HTTP API кошелька для приложения «Казна».
+"""HTTP API кошелька «Казна» — на чистой стандартной библиотеке Python (без установки пакетов).
 
-Запуск: uvicorn backend.server:app --host 0.0.0.0 --port 8080
-Доступ: каждый запрос должен нести заголовок X-Access-Key = ACCESS_KEY.
+Запуск из корня репозитория:
+    python3 -m backend.server
+Хост/порт — из переменных HOST (127.0.0.1) и PORT (8080).
+Каждый запрос (кроме /api/health) должен нести заголовок X-Access-Key = ACCESS_KEY.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+import os
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import config
 from .wallet import Ledger, TronWallet
 
 log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 
 settings = config.load()
 ledger = Ledger("data/ledger.json")
 wallet = TronWallet(settings, ledger)
 
-app = FastAPI(title="Казна API")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-
-def _auth(key: str | None) -> None:
-    if not settings.access_key or key != settings.access_key:
-        raise HTTPException(status_code=401, detail="неверный ключ доступа")
-
-
-class PayIn(BaseModel):
-    to: str
-    amount: float
-
-
-@app.get("/api/summary")
-def summary(x_access_key: str | None = Header(default=None)):
-    _auth(x_access_key)
+def summary() -> dict:
     data = {
         "address": settings.address,
         "live": settings.live,
@@ -58,12 +45,55 @@ def summary(x_access_key: str | None = Header(default=None)):
     return data
 
 
-@app.post("/api/pay")
-def pay(body: PayIn, x_access_key: str | None = Header(default=None)):
-    _auth(x_access_key)
-    return wallet.send_usdt(body.to, body.amount)
+class Handler(BaseHTTPRequestHandler):
+    def _send(self, code: int, obj: dict) -> None:
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _authed(self) -> bool:
+        return bool(settings.access_key) and self.headers.get("X-Access-Key") == settings.access_key
+
+    def do_OPTIONS(self):  # preflight CORS
+        self._send(200, {})
+
+    def do_GET(self):
+        if self.path == "/api/health":
+            return self._send(200, {"ok": True, "live": settings.live})
+        if not self._authed():
+            return self._send(401, {"detail": "неверный ключ доступа"})
+        if self.path == "/api/summary":
+            return self._send(200, summary())
+        self._send(404, {"detail": "не найдено"})
+
+    def do_POST(self):
+        if not self._authed():
+            return self._send(401, {"detail": "неверный ключ доступа"})
+        if self.path == "/api/pay":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(length) or b"{}")
+                return self._send(200, wallet.send_usdt(str(body.get("to", "")), float(body.get("amount", 0))))
+            except Exception as e:
+                return self._send(400, {"detail": f"плохой запрос: {e}"})
+        self._send(404, {"detail": "не найдено"})
+
+    def log_message(self, *a):  # не засоряем вывод
+        return
 
 
-@app.get("/api/health")
-def health():
-    return {"ok": True, "live": settings.live}
+def main() -> None:
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "8080"))
+    log.info("Казна API на http://%s:%s (live=%s)", host, port, settings.live)
+    ThreadingHTTPServer((host, port), Handler).serve_forever()
+
+
+if __name__ == "__main__":
+    main()

@@ -93,11 +93,15 @@ class TronWallet:
     # ---------- чтение через REST TronGrid (только requests, ничего не компилируется) ----------
 
     def _get(self, path: str, **params) -> dict:
-        import requests
+        import urllib.parse
+        import urllib.request
+        url = f"{self.s.node_url}{path}"
+        if params:
+            url += "?" + urllib.parse.urlencode(params)
         headers = {"TRON-PRO-API-KEY": self.s.tron_api_key} if self.s.tron_api_key else {}
-        r = requests.get(f"{self.s.node_url}{path}", params=params, headers=headers, timeout=20)
-        r.raise_for_status()
-        return r.json()
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read().decode())
 
     def _account(self) -> dict:
         data = self._get(f"/v1/accounts/{self.s.address}").get("data") or []
